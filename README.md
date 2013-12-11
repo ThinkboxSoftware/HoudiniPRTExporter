@@ -37,7 +37,7 @@
 		</ul>
 	</li>
 	<li>
-		Create local copy of this repository.
+		Create a local copy of this repository.
 	</li>
 	<li>
 		Modify build.bat (Windows) or build.sh (Linux) to point to the prerequisite libraries.
