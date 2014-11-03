@@ -2,51 +2,28 @@
 	HoudiniPRTExporter
 </h1>
 <p>
-	Python module for Houdini 12 that allows users to export Houdini particles to Thinkbox PRT format.
+	Python module for Houdini that allows users to export Houdini particles to Thinkbox PRT format.
+</p>
+<p>
+	This plugin supports Houdini 12 and Houdini 13. 
 </p>
 <h3>
 	Download Binary:
 </h3>
 <ul>
 	<li>
-		PRT Exporter for Windows download: https://thinkboxsoftware.box.com/shared/static/yg9wosstpujuhlvmf5rv.zip
+		PRT Exporter downloads: https://thinkboxsoftware.box.com/s/l8sggb6upk3m4ko5irn8
 	</li>
 	<li>
-		PRT Exporter for Linux download: https://thinkboxsoftware.box.com/shared/static/a0h85xykamx2p35vtgjs.zip
+		For Windows, the Houdini 13 download will only work on Houdini 13.0.547 or later.
 	</li>
 </ul>
 <h3>
-	Building from Source:
+	Building from Source: 
 </h3>
 <ul>
 	<li>
-		Prerequisites:
-		<ul>
-			<li>
-				Ensure Houdini 12 is installed.
-			</li>
-			<li>
-				Ensure that OpenEXR libraries and headers are installed. http://www.openexr.com/
-			</li>
-			<li>
-				Ensure that Zlib libraries and headers are installed. http://www.zlib.net/
-			</li>
-			<li>
-				Ensure that the PRT I/O reference library headers are copied locally. https://github.com/ThinkboxSoftware/PRT-IO-Library
-			</li>
-		</ul>
-	</li>
-	<li>
-		Create a local copy of this repository.
-	</li>
-	<li>
-		Modify build.bat (Windows) or build.sh (Linux) to point to the prerequisite libraries.
-	</li>
-	<li>
-		Launch the "Houdini Command Line Tools".
-	</li>
-	<li>
-		Run build.bat or build.sh from the "Houdini Command Line Tools".
+		Please, read the file build-instructions.txt.
 	</li>
 </ul>
 <h3>
@@ -57,7 +34,10 @@
 		Ensure the plugin has either been built from source, or the pre-built binary has been downloaded.
 	</li>
 	<li>
-		Copy the exportPRT.dll (Windows) or exportPRT.so (Linux) to: {Houdini Install Directory}/houdini/dso/
+		On Windows and Linux, copy the exportPRT.dll or exportPRT.so to: {Houdini Install Directory}/houdini/dso/
+	</li>
+	<li>
+		On OS X, copy the exportPRT.dylib to: {Your Home Directory}/Library/Preferences/houdini/{Your Version Of Houdini}/dso/ or to: Users/Shared/houdini/{Your Version of Houdini}/dso/.
 	</li>
 </ul>
 <h3>
@@ -68,7 +48,7 @@
 		Once the plugin has been installed, Houdini will have a new Python module called "Krakatoa".
 	</li>
 	<li>
-		Launch Houdini, and create a new scene with a particle system.
+		Launch Houdini, and create a new scene with a particle system. Note that Pop Network - Old only is supported.
 	<li>
 		To perform an export, open Python inside Houdini and use the following commands (Substitute your own node path and file path):
 		<pre>

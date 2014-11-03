@@ -13,14 +13,17 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  *
- * This file contains a Houdini 12 plugin for exporting Houdini particles in PRT format.
+ * This file contains a Houdini plugin for exporting Houdini particles in PRT format.
+ * The plugin supports Houdini 12 and Houdini 13.
  */
  
 #define OPENEXR_DLL
 #include <deque>
 
 #ifdef WIN32
+#ifndef NOMINMAX
 #define NOMINMAX
+#endif
 #include <windows.h>
 #endif
 
@@ -43,13 +46,14 @@
 
 using namespace prtio;
 
+
 template <class T>
 struct bound_attribute{
     GA_ROAttributeRef attr;
     T* data;
     int count;
 
-    bound_attribute() : data(NULL), count(0)
+    bound_attribute() : data( NULL ), count( 0 )
     {}
 
     ~bound_attribute(){
@@ -60,37 +64,39 @@ struct bound_attribute{
 
 typedef std::pair<data_types::enum_t, std::size_t> channel_type;
 
-static void exportParticlesDetail(const GU_Detail* gdp,
+static void exportParticlesDetail( const GU_Detail* gdp,
                                   const std::string& filePath,
                                   const std::map<std::string,
                                   channel_type>& desiredChannels )
 {
-    if( gdp->getParticleCount() <= 0 )
+	if( gdp->getParticleCount() <= 0 ) {
+		std::cout << "There's no particle associated to that node." << std::endl; 
         return;
-	
+	}
+
     prt_ofstream ostream;
 
     static std::map<std::string, std::string> s_reservedChannels;
-    if( s_reservedChannels.empty() ){
-        s_reservedChannels[ gdp->getStdAttributeName(GEO_ATTRIBUTE_NORMAL) ] = "Normal";
-        s_reservedChannels[ gdp->getStdAttributeName(GEO_ATTRIBUTE_TEXTURE) ] = "TextureCoord";
-        s_reservedChannels[ gdp->getStdAttributeName(GEO_ATTRIBUTE_VELOCITY) ] = "Velocity";
-        s_reservedChannels[ gdp->getStdAttributeName(GEO_ATTRIBUTE_DIFFUSE) ] = "Color";
-        //s_reservedChannels[ gdp->getStdAttributeName(GEO_ATTRIBUTE_ALPHA) ] = "Density";
-        //s_reservedChannels[ gdp->getStdAttributeName(GEO_ATTRIBUTE_MASS) ] = "Density";
-        s_reservedChannels[ gdp->getStdAttributeName(GEO_ATTRIBUTE_LIFE) ] = "";
-        s_reservedChannels[ gdp->getStdAttributeName(GEO_ATTRIBUTE_ID) ] = "ID";
-        s_reservedChannels[ gdp->getStdAttributeName(GEO_ATTRIBUTE_PSCALE) ] = "Scale";
+    if( s_reservedChannels.empty() ) {
+        s_reservedChannels[ gdp->getStdAttributeName( GEO_ATTRIBUTE_NORMAL ) ] = "Normal";
+        s_reservedChannels[ gdp->getStdAttributeName( GEO_ATTRIBUTE_TEXTURE ) ] = "TextureCoord";
+        s_reservedChannels[ gdp->getStdAttributeName( GEO_ATTRIBUTE_VELOCITY ) ] = "Velocity";
+        s_reservedChannels[ gdp->getStdAttributeName( GEO_ATTRIBUTE_DIFFUSE ) ] = "Color";
+        //s_reservedChannels[ gdp->getStdAttributeName( GEO_ATTRIBUTE_ALPHA ) ] = "Density";
+        //s_reservedChannels[ gdp->getStdAttributeName( GEO_ATTRIBUTE_MASS ) ] = "Density";
+        s_reservedChannels[ gdp->getStdAttributeName( GEO_ATTRIBUTE_LIFE ) ] = "";
+        s_reservedChannels[ gdp->getStdAttributeName( GEO_ATTRIBUTE_ID ) ] = "ID";
+        s_reservedChannels[ gdp->getStdAttributeName( GEO_ATTRIBUTE_PSCALE ) ] = "Scale";
         s_reservedChannels[ "accel" ] = "Acceleration";
     }
 
     float posVal[3];
     float lifeVal[2];
 	
-    ostream.bind( "Position", posVal, 3 );
+	ostream.bind( "Position", posVal, 3 );
 
     //We handle the life channel in a special manner
-    GA_ROAttributeRef lifeAttrib = gdp->findPointAttribute(gdp->getStdAttributeName(GEO_ATTRIBUTE_LIFE));
+    GA_ROAttributeRef lifeAttrib = gdp->findPointAttribute( gdp->getStdAttributeName( GEO_ATTRIBUTE_LIFE ) );
     if( lifeAttrib.isValid() ){
         std::map<std::string,channel_type>::const_iterator it;
 		
@@ -106,31 +112,29 @@ static void exportParticlesDetail(const GU_Detail* gdp,
         else if( desiredChannels.empty() )
             ostream.bind( "LifeSpan", &lifeVal[1], 1, prtio::data_types::type_float16 );
     }
-	
-    //Using a deque to prevent the memory from moving around after adding the bound_attribute to the container.
+	 
+     //Using a deque to prevent the memory from moving around after adding the bound_attribute to the container.
     std::deque< bound_attribute<int> > m_intAttrs;
     std::deque< bound_attribute<float> > m_floatAttrs;
     std::deque< bound_attribute<float> > m_vectorAttrs;
 
-    for (GA_AttributeDict::iterator it = gdp->getAttributes().getDict(GA_ATTRIB_POINT).begin(GA_SCOPE_PUBLIC);
-         !it.atEnd(); ++it)
-    {
-        GA_Attribute            *node = it.attrib();
+    for ( GA_AttributeDict::iterator it = gdp->getAttributes().getDict(GA_ATTRIB_POINT).begin(GA_SCOPE_PUBLIC); !it.atEnd(); ++it) {
+        GA_Attribute *node = it.attrib();
 
         std::string channelName = node->getName();
 
         //Translate special names
-        std::map<std::string,std::string>::const_iterator it = s_reservedChannels.find( channelName );
-        if( it != s_reservedChannels.end() ){
+        std::map<std::string,std::string>::const_iterator itResChannel = s_reservedChannels.find( channelName );
+        if( itResChannel != s_reservedChannels.end() ){
             //If its empty, that means we reserve some sort of special handling.
-            if( it->second.empty() )
+            if( itResChannel->second.empty() )
                 continue;
-            channelName = it->second;
+            channelName = itResChannel->second;
         }
 		
         //Skip channels that aren't on the list.
         std::map<std::string,channel_type>::const_iterator itChannel = desiredChannels.find( channelName );
-        bool channelIsDesired = (itChannel != desiredChannels.end());
+        bool channelIsDesired = ( itChannel != desiredChannels.end() );
 		
         if( !desiredChannels.empty() && !channelIsDesired )
             continue;
@@ -141,8 +145,7 @@ static void exportParticlesDetail(const GU_Detail* gdp,
         //me to allocate the float array and not have to worry about the object getting deleted too early.
         switch( node->getStorageClass() ){
         case GA_STORECLASS_FLOAT:
-            if (node->getTupleSize()==3)
-            {
+            if( node->getTupleSize()==3 ){
                 m_vectorAttrs.push_back( bound_attribute<float>() );
                 m_vectorAttrs.back().attr =	gdp->findPointAttribute(node->getName());
                 m_vectorAttrs.back().count = node->getTupleSize();
@@ -157,11 +160,9 @@ static void exportParticlesDetail(const GU_Detail* gdp,
 
                 ostream.bind( channelName, m_vectorAttrs.back().data, m_vectorAttrs.back().count, type );
 
-            }
-            else
-            {
+            } else {
                 m_floatAttrs.push_back( bound_attribute<float>() );
-                m_floatAttrs.back().attr =	gdp->findPointAttribute(node->getName());
+                m_floatAttrs.back().attr =	gdp->findPointAttribute( node->getName() );
                 m_floatAttrs.back().count = node->getTupleSize();
                 m_floatAttrs.back().data = new float[m_floatAttrs.back().count];
 
@@ -177,7 +178,7 @@ static void exportParticlesDetail(const GU_Detail* gdp,
             break;
         case GA_STORECLASS_INT:
             m_intAttrs.push_back( bound_attribute<int>() );
-            m_intAttrs.back().attr =	gdp->findPointAttribute(node->getName());
+            m_intAttrs.back().attr = gdp->findPointAttribute( node->getName() );
             m_intAttrs.back().count = node->getTupleSize();
             m_intAttrs.back().data = new int[m_intAttrs.back().count];
 
@@ -197,35 +198,34 @@ static void exportParticlesDetail(const GU_Detail* gdp,
 
     try{
         ostream.open( filePath );
-    }catch( const std::ios::failure& e ){
+    } catch( const std::ios::failure& e ) {
         std::cerr << e.what() << std::endl;
-
         throw HOM_OperationFailed( "Failed to open the file" );
     }
+	
+	for ( GA_Iterator itPrim( gdp->getPrimitiveRange() ); !itPrim.atEnd(); ++itPrim ) {
+		GEO_PrimParticle* partPrim = ( GEO_PrimParticle* ) gdp->getGEOPrimitive( *itPrim );
+		GA_Size numVertices = partPrim->getVertexCount();
+		
+		for( GA_Size verticesIndex = 0; verticesIndex < numVertices; ++verticesIndex ) {	
+			GA_Offset offset = partPrim->getPointOffset( verticesIndex );
 
-    GEO_PrimParticle* partPrim = (GEO_PrimParticle*)gdp->primitives().head(GEO_PrimTypeCompat::GEOPRIMPART);
-    while( partPrim ){
-        GA_Size numVertices = partPrim->getVertexCount();
-        for ( GA_Size verticesIndex = 0; verticesIndex < numVertices; ++verticesIndex)
-        {
-            GEO_Vertex vertex = partPrim->getVertexElement(verticesIndex);
-            GEO_Vertex* prt = &vertex;
-            UT_Vector4 p = prt->getPos();
+			UT_Vector3 p =	(UT_Vector3)gdp->getPos3(offset);
+			posVal[0] = p.x();
+            posVal[1] = p.y();
+            posVal[2] = -1 * p.z();
 			
-            posVal[0] =  p.x() / p.w();
-            posVal[1] = p.y() / p.w();
-            posVal[2] = p.z() / p.w();
-
-            GEO_Point* pt = prt->getPt();
-
+			//TODO: Remove the GEO_Point object that is now deprecated. 
+			GEO_Point* pt = ( GEO_Point* )gdp->getGBPoint( offset );
+			
             //TODO: Convert this into appropriate time values. Is it seconds or frames or what?!
-            if( lifeAttrib.isValid() )
+            if( lifeAttrib.isValid() ) 
                 pt->get( lifeAttrib, lifeVal, 2 );
 
             for( std::deque< bound_attribute<float> >::iterator it = m_floatAttrs.begin(), itEnd = m_floatAttrs.end(); it != itEnd; ++it )
                 pt->get( it->attr, it->data, it->count );
 
-            for( std::deque< bound_attribute<float> >::iterator it = m_vectorAttrs.begin(), itEnd = m_vectorAttrs.end(); it != itEnd; ++it ){
+            for( std::deque< bound_attribute<float> >::iterator it = m_vectorAttrs.begin(), itEnd = m_vectorAttrs.end(); it != itEnd; ++it ) {
                 pt->get( it->attr, it->data, it->count );
 				
                 //TODO: Optionally transform into some consistent world space for PRT files.
@@ -235,53 +235,49 @@ static void exportParticlesDetail(const GU_Detail* gdp,
                 pt->get( it->attr, it->data, it->count );
 
             ostream.write_next_particle();
-
-        }
-
-        partPrim = (GEO_PrimParticle*)gdp->primitives().next(partPrim, GEO_PrimTypeCompat::GEOPRIMPART);
-    }
+		}
+	}
 
     ostream.close();
 }
 
-static void exportParticles(const char *node_path, const char *filePath, const std::map<std::string, channel_type>& channels )
+static void exportParticles( const char *node_path, const char *filePath, const std::map<std::string, channel_type>& channels )
 {
-    OP_Node *op_node = OPgetDirector()->findNode(node_path);
-    if (!op_node)
-        throw HOM_OperationFailed("Internal error (could not find node)");
+    OP_Node *op_node = OPgetDirector()->findNode( node_path );
+    if ( !op_node )
+        throw HOM_OperationFailed( "Internal error (could not find node)" );
 
     float t = HOM().time();
 	
-    SOP_Node* sopNode = CAST_SOPNODE(op_node);
-    if( !sopNode )
-        return;
-
+    SOP_Node* sopNode = CAST_SOPNODE( op_node );
+    if( !sopNode ) 
+		throw HOM_OperationFailed( "Internal error (not a valid node type)" );
+	
     // Get our parent.
     OP_Node *parent_node = sopNode->getParent();
     
     // Store the cooking status of our parent node.
     bool was_cooking = false;
-    if(parent_node)
-    {
+    if( parent_node ){
         was_cooking = parent_node->isCookingRender();
-        parent_node->setCookingRender(true);
+        parent_node->setCookingRender( true );
     }
 
     // Create a context with the time we want the geometry at.
-    OP_Context  context(t);
+    OP_Context  context( t );
     // Get a handle to the geometry.
-    GU_DetailHandle gd_handle = sopNode->getCookedGeoHandle(context);
+    GU_DetailHandle gd_handle = sopNode->getCookedGeoHandle( context );
 
     // Restore the cooking flag, if we changed it.
-    if(parent_node)
-        parent_node->setCookingRender(was_cooking);
+    if( parent_node )
+        parent_node->setCookingRender( was_cooking );
 
     // Check if we have a valid detail handle.
-    if( gd_handle.isNull() )
-        return;
+    if( gd_handle.isNull() ) 
+		throw HOM_OperationFailed( "Internal error (not a valid detail handle)" );
 
     // Lock it for reading.
-    GU_DetailHandleAutoReadLock gd_lock(gd_handle);
+    GU_DetailHandleAutoReadLock gd_lock( gd_handle );
 
     // Finally, get at the actual GU_Detail.
     const GU_Detail* gdp = gd_lock.getGdp();
@@ -291,7 +287,7 @@ static void exportParticles(const char *node_path, const char *filePath, const s
 
 static PY_PyObject* createHouException( const char *exception_class_name,
                                         const char *instance_message,
-                                        PY_PyObject *&exception_class)
+                                        PY_PyObject *&exception_class )
 {
     // Create an instance of the given exception class from the hou
     // module, passing the instance message into the exeption class's
@@ -305,37 +301,37 @@ static PY_PyObject* createHouException( const char *exception_class_name,
     // We use it for Python API functions that return new object instances.
     // Because this HDK extension is installed after the hou module is
     // imported, we can be sure that we can be sure hou_module won't be null.
-    PY_AutoObject hou_module(PY_PyImport_ImportModule("hou"));
+    PY_AutoObject hou_module( PY_PyImport_ImportModule( "hou" ) );
 
     // Look up the exception by name in the module's dictionary.  Note that
     // PY_PyModule_GetDict returns a borrowed reference and that it never
     // returns NULL.  PY_PyDict_GetItemString also returns a borrowed
     // reference.
-    PY_PyObject *hou_module_dict = PY_PyModule_GetDict(hou_module);
-    exception_class = PY_PyDict_GetItemString(hou_module_dict, exception_class_name);
+    PY_PyObject *hou_module_dict = PY_PyModule_GetDict( hou_module );
+    exception_class = PY_PyDict_GetItemString( hou_module_dict, exception_class_name );
 
     // PY_PyDict_GetItemString doesn't set a Python exception, so we are careful
     // to set it ourselves if the class name isn't valid.
-    if (!exception_class)
+    if ( !exception_class )
     {
-        PY_PyErr_SetString(PY_PyExc_RuntimeError(), "Could not find exception class in hou module");
+        PY_PyErr_SetString( PY_PyExc_RuntimeError(), "Could not find exception class in hou module" );
         return NULL;
     }
 
     // Create an instance of the exception.  First create a tuple containing
     // the arguments to __init__.
-    PY_AutoObject args(PY_Py_BuildValue("(s)", instance_message));
-    if (!args)
+    PY_AutoObject args( PY_Py_BuildValue( "(s)", instance_message ) );
+    if ( !args )
         return NULL;
 
-    return PY_PyObject_Call(exception_class, args, /*kwargs=*/NULL);
+    return PY_PyObject_Call( exception_class, args, /*kwargs=*/NULL );
 }
 
-static PY_PyObject* exportParticles_Wrapper(PY_PyObject *self, PY_PyObject *args)
+static PY_PyObject* exportParticles_Wrapper( PY_PyObject *self, PY_PyObject *args )
 {
     // This is a wrapper that is called from the Python runtime engine.  It
     // translates the Python arguments to C/C++ ones, calls a function to do
-    // the actual work, and converts exceptions raised by that function into
+    // the actual work, and converts exceptions raised by that function intotest
     // Python exceptions.
     //
     // Note that you could also use swig to automatically generate wrapper
@@ -350,10 +346,10 @@ static PY_PyObject* exportParticles_Wrapper(PY_PyObject *self, PY_PyObject *args
     PY_PyObject* channelList = NULL;
     const char *file_path;
 
-    if( !PY_PyArg_ParseTuple( args, "Os|O", &node, &file_path, &channelList) )
+    if( !PY_PyArg_ParseTuple( args, "Os|O", &node, &file_path, &channelList ) )
         return NULL;
 
-    PY_AutoObject nodePath = PY_PyObject_CallMethod(node, "path", NULL);
+    PY_AutoObject nodePath = PY_PyObject_CallMethod( node, "path", NULL );
     if( !nodePath )
         return NULL;
 	
@@ -371,17 +367,17 @@ static PY_PyObject* exportParticles_Wrapper(PY_PyObject *self, PY_PyObject *args
                     return NULL;
 				
                 const char *nameStart = curString, *nameEnd = curString;
-                while( *nameEnd != '\0' && std::isalnum(*nameEnd) )
+                while( *nameEnd != '\0' && std::isalnum( *nameEnd ) )
                     ++nameEnd;
 				
-                std::string name(nameStart, nameEnd);
+                std::string name( nameStart, nameEnd );
 				
                 channel_type type = prtio::data_types::parse_data_type( nameEnd );
 				
                 channels[name] = type;
             }
         }catch( const std::exception& e ){
-            PY_PyErr_SetString(PY_PyExc_TypeError(), e.what());
+            PY_PyErr_SetString( PY_PyExc_TypeError(), e.what() );
             return NULL;
         }
     }
@@ -397,14 +393,14 @@ static PY_PyObject* exportParticles_Wrapper(PY_PyObject *self, PY_PyObject *args
         HOM_AutoLock hom_lock;
 
         // Call the wrapped function to do the actual work.
-        exportParticles(PY_PyString_AsString(nodePath), file_path, channels);
+        exportParticles( PY_PyString_AsString( nodePath ), file_path, channels );
 
         // Return PY_Py_None to indicate that no error occurred.  If your
         // wrapped function returns a value, you'll need to convert it into
         // a Python object here.
         return PY_Py_None();
     }
-    catch (HOM_Error &error)
+    catch ( HOM_Error &error )
     {
         cerr << error.instanceMessage() << std::endl;
 
@@ -412,22 +408,22 @@ static PY_PyObject* exportParticles_Wrapper(PY_PyObject *self, PY_PyObject *args
         // (and can be found in HOM_Errors.h).  We use RTTI to get the class
         // name, remove the "HOM_" prefix, and look up the corresponding
         // exception class in the hou Python module.
-        std::string exception_class_name = UTunmangleClassNameFromTypeIdName(typeid(error).name());
-        if (exception_class_name.find("HOM_") == 0)
-            exception_class_name = exception_class_name.substr(4);
+        std::string exception_class_name = UTunmangleClassNameFromTypeIdName( typeid(error).name() );
+        if ( exception_class_name.find( "HOM_" ) == 0 )
+            exception_class_name = exception_class_name.substr( 4 );
 
         // Note that a PY_AutoObject class is just a wrapper around a
         // PY_PyObject pointer that will call PY_Py_XDECREF when the it's
         // destroyed.
         PY_PyObject* exception_class;
-        PY_AutoObject exception_instance(createHouException(exception_class_name.c_str(),
-                                                            error.instanceMessage().c_str(),exception_class));
-        if (!exception_instance)
+        PY_AutoObject exception_instance( createHouException( exception_class_name.c_str(),
+                                                            error.instanceMessage().c_str(),exception_class ) );
+        if ( !exception_instance )
             return NULL;
 
         // Set the exception and return NULL so Python knows an exception was
         // raised.
-        PY_PyErr_SetObject(exception_class, exception_instance);
+        PY_PyErr_SetObject( exception_class, exception_instance );
         return NULL;
     }
 }
@@ -452,6 +448,6 @@ void HOMextendLibrary()
             { NULL, NULL, 0, NULL }
         };
 
-        PY_Py_InitModule("Krakatoa", krakatoaModule);
+        PY_Py_InitModule( "Krakatoa", krakatoaModule );
     }
 }
