@@ -48,12 +48,14 @@
 		Once the plugin has been installed, Houdini will have a new Python module called "Krakatoa".
 	</li>
 	<li>
-		Launch Houdini, and create a new scene with a particle system. Note that Pop Network - Old only is supported.
+		Launch Houdini, and create a new scene with a particle system.
 	<li>
 		To perform an export, open Python inside Houdini and use the following commands (Substitute your own node path and file path):
 		<pre>
 import Krakatoa
-Krakatoa.exportParticles( hou.node( "/obj/particle_emitter1/popnet1" ), "my_path/output_particles.prt" )
+Krakatoa.exportParticles( hou.node( "/obj/particle_emitter1/popnet1" ), "my_path/output_particles.prt" ) (for Houdini 12)
+or
+Krakatoa.exportParticles( hou.node( "/obj/location_particles/import_location" ), "my_path/output_particles.prt" ) (for Houdini 13)
 		</pre>
 	</li>
 </ul>

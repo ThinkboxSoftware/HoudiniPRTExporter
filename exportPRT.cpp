@@ -43,6 +43,7 @@
 #include <sstream>
 
 #include <prtio/prt_ofstream.hpp>
+#include <prtio/detail/prt_header.hpp>
 
 using namespace prtio;
 
@@ -69,11 +70,6 @@ static void exportParticlesDetail( const GU_Detail* gdp,
                                   const std::map<std::string,
                                   channel_type>& desiredChannels )
 {
-	if( gdp->getParticleCount() <= 0 ) {
-		std::cout << "There's no particle associated to that node." << std::endl; 
-        return;
-	}
-
     prt_ofstream ostream;
 
     static std::map<std::string, std::string> s_reservedChannels;
@@ -112,13 +108,14 @@ static void exportParticlesDetail( const GU_Detail* gdp,
         else if( desiredChannels.empty() )
             ostream.bind( "LifeSpan", &lifeVal[1], 1, prtio::data_types::type_float16 );
     }
-	 
-     //Using a deque to prevent the memory from moving around after adding the bound_attribute to the container.
+	
+    //Using a deque to prevent the memory from moving around after adding the bound_attribute to the container.
     std::deque< bound_attribute<int> > m_intAttrs;
     std::deque< bound_attribute<float> > m_floatAttrs;
     std::deque< bound_attribute<float> > m_vectorAttrs;
-
+	
     for ( GA_AttributeDict::iterator it = gdp->getAttributes().getDict(GA_ATTRIB_POINT).begin(GA_SCOPE_PUBLIC); !it.atEnd(); ++it) {
+		
         GA_Attribute *node = it.attrib();
 
         std::string channelName = node->getName();
@@ -141,60 +138,63 @@ static void exportParticlesDetail( const GU_Detail* gdp,
 			
         prtio::data_types::enum_t type;
 		
-        //I add the new item to the deque, THEN initialize it since a deque will not move the object around and this allows
-        //me to allocate the float array and not have to worry about the object getting deleted too early.
-        switch( node->getStorageClass() ){
-        case GA_STORECLASS_FLOAT:
-            if( node->getTupleSize()==3 ){
-                m_vectorAttrs.push_back( bound_attribute<float>() );
-                m_vectorAttrs.back().attr =	gdp->findPointAttribute(node->getName());
-                m_vectorAttrs.back().count = node->getTupleSize();
-                m_vectorAttrs.back().data = new float[m_vectorAttrs.back().count];
+		//Only add valid channel names
+		if( detail::is_valid_channel_name( channelName.c_str() ) ) {
+			//I add the new item to the deque, THEN initialize it since a deque will not move the object around and this allows
+			//me to allocate the float array and not have to worry about the object getting deleted too early.
+			switch( node->getStorageClass() ){
+			case GA_STORECLASS_FLOAT:
+				if( node->getTupleSize()==3 ){
+					m_vectorAttrs.push_back( bound_attribute<float>() );
+					m_vectorAttrs.back().attr =	gdp->findPointAttribute(node->getName());
+					m_vectorAttrs.back().count = node->getTupleSize();
+					m_vectorAttrs.back().data = new float[m_vectorAttrs.back().count];
 
-                type = prtio::data_types::type_float16;
-                if( channelIsDesired ){
-                    type = itChannel->second.first;
-                    if( itChannel->second.second != m_vectorAttrs.back().count )
-                        continue;
-                }
+					type = prtio::data_types::type_float16;
+					if( channelIsDesired ){
+						type = itChannel->second.first;
+						if( itChannel->second.second != m_vectorAttrs.back().count )
+							continue;
+					}
 
-                ostream.bind( channelName, m_vectorAttrs.back().data, m_vectorAttrs.back().count, type );
+					ostream.bind( channelName, m_vectorAttrs.back().data, m_vectorAttrs.back().count, type );
 
-            } else {
-                m_floatAttrs.push_back( bound_attribute<float>() );
-                m_floatAttrs.back().attr =	gdp->findPointAttribute( node->getName() );
-                m_floatAttrs.back().count = node->getTupleSize();
-                m_floatAttrs.back().data = new float[m_floatAttrs.back().count];
+				} else {
+					m_floatAttrs.push_back( bound_attribute<float>() );
+					m_floatAttrs.back().attr =	gdp->findPointAttribute( node->getName() );
+					m_floatAttrs.back().count = node->getTupleSize();
+					m_floatAttrs.back().data = new float[m_floatAttrs.back().count];
 
-                type = prtio::data_types::type_float16;
-                if( channelIsDesired ){
-                    type = itChannel->second.first;
-                    if( itChannel->second.second != m_floatAttrs.back().count )
-                        continue;
-                }
+					type = prtio::data_types::type_float16;
+					if( channelIsDesired ){
+						type = itChannel->second.first;
+						if( itChannel->second.second != m_floatAttrs.back().count )
+							continue;
+					}
 
-                ostream.bind( channelName, m_floatAttrs.back().data, m_floatAttrs.back().count, type );
-            }
-            break;
-        case GA_STORECLASS_INT:
-            m_intAttrs.push_back( bound_attribute<int>() );
-            m_intAttrs.back().attr = gdp->findPointAttribute( node->getName() );
-            m_intAttrs.back().count = node->getTupleSize();
-            m_intAttrs.back().data = new int[m_intAttrs.back().count];
+					ostream.bind( channelName, m_floatAttrs.back().data, m_floatAttrs.back().count, type );
+				}
+				break;
+			case GA_STORECLASS_INT:
+				m_intAttrs.push_back( bound_attribute<int>() );
+				m_intAttrs.back().attr = gdp->findPointAttribute( node->getName() );
+				m_intAttrs.back().count = node->getTupleSize();
+				m_intAttrs.back().data = new int[m_intAttrs.back().count];
 
-            type = prtio::data_types::type_int32;
-            if( channelIsDesired ){
-                type = itChannel->second.first;
-                if( itChannel->second.second != m_intAttrs.back().count )
-                    continue;
-            }
-
-            ostream.bind( channelName, m_intAttrs.back().data, m_intAttrs.back().count, type );
-            break;
-        default:
-            break;
-        }
-    }
+				type = prtio::data_types::type_int32;
+				if( channelIsDesired ){
+					type = itChannel->second.first;
+					if( itChannel->second.second != m_intAttrs.back().count )
+						continue;
+				}
+			
+				ostream.bind( channelName, m_intAttrs.back().data, m_intAttrs.back().count, type );
+				break;
+			default:
+				break;
+			}
+		}
+	}
 
     try{
         ostream.open( filePath );
@@ -202,42 +202,42 @@ static void exportParticlesDetail( const GU_Detail* gdp,
         std::cerr << e.what() << std::endl;
         throw HOM_OperationFailed( "Failed to open the file" );
     }
-	
-	for ( GA_Iterator itPrim( gdp->getPrimitiveRange() ); !itPrim.atEnd(); ++itPrim ) {
-		GEO_PrimParticle* partPrim = ( GEO_PrimParticle* ) gdp->getGEOPrimitive( *itPrim );
-		GA_Size numVertices = partPrim->getVertexCount();
 		
-		for( GA_Size verticesIndex = 0; verticesIndex < numVertices; ++verticesIndex ) {	
-			GA_Offset offset = partPrim->getPointOffset( verticesIndex );
+	GA_IndexMap map = gdp->getPointMap();
+	UT_Vector3 p;
+	GEO_Point* pt;
+	GA_Index indexSize = map.indexSize();
+	GA_Offset offset;
 
-			UT_Vector3 p =	(UT_Vector3)gdp->getPos3(offset);
-			posVal[0] = p.x();
-            posVal[1] = p.y();
-            posVal[2] = -1 * p.z();
-			
-			//TODO: Remove the GEO_Point object that is now deprecated. 
-			GEO_Point* pt = ( GEO_Point* )gdp->getGBPoint( offset );
-			
-            //TODO: Convert this into appropriate time values. Is it seconds or frames or what?!
-            if( lifeAttrib.isValid() ) 
-                pt->get( lifeAttrib, lifeVal, 2 );
+	for( int i = 0 ; i < indexSize; i++ ) {
+		offset = map.offsetFromIndex( i );
+		p = gdp->getPos3( offset );
+		posVal[0] = p.x();
+		posVal[1] = p.y();
+		posVal[2] = -1 * p.z();
+		
+		//TODO: Remove the GEO_Point object that is now deprecated. 
+		pt = ( GEO_Point* )gdp->getGBPoint( offset );
+		
+        //TODO: Convert this into appropriate time values. Is it seconds or frames or what?!
+        if( lifeAttrib.isValid() ) 
+            pt->get( lifeAttrib, lifeVal, 2 );
 
-            for( std::deque< bound_attribute<float> >::iterator it = m_floatAttrs.begin(), itEnd = m_floatAttrs.end(); it != itEnd; ++it )
-                pt->get( it->attr, it->data, it->count );
+        for( std::deque< bound_attribute<float> >::iterator it = m_floatAttrs.begin(), itEnd = m_floatAttrs.end(); it != itEnd; ++it )
+			pt->get( it->attr, it->data, it->count );
 
-            for( std::deque< bound_attribute<float> >::iterator it = m_vectorAttrs.begin(), itEnd = m_vectorAttrs.end(); it != itEnd; ++it ) {
-                pt->get( it->attr, it->data, it->count );
+        for( std::deque< bound_attribute<float> >::iterator it = m_vectorAttrs.begin(), itEnd = m_vectorAttrs.end(); it != itEnd; ++it ) {
+            pt->get( it->attr, it->data, it->count );
 				
-                //TODO: Optionally transform into some consistent world space for PRT files.
-            }
+            //TODO: Optionally transform into some consistent world space for PRT files.
+        }
 
-            for( std::deque< bound_attribute<int> >::iterator it = m_intAttrs.begin(), itEnd = m_intAttrs.end(); it != itEnd; ++it )
-                pt->get( it->attr, it->data, it->count );
+        for( std::deque< bound_attribute<int> >::iterator it = m_intAttrs.begin(), itEnd = m_intAttrs.end(); it != itEnd; ++it )
+            pt->get( it->attr, it->data, it->count );
 
-            ostream.write_next_particle();
-		}
+        ostream.write_next_particle();
 	}
-
+	
     ostream.close();
 }
 
