@@ -50,17 +50,17 @@ using namespace prtio;
 
 template <class T>
 struct bound_attribute{
-    GA_ROAttributeRef attr;
-    T* data;
-    int count;
+	GA_ROAttributeRef attr;
+	T* data;
+	int count;
 
-    bound_attribute() : data( NULL ), count( 0 )
-    {}
+	bound_attribute() : data( NULL ), count( 0 )
+	{}
 
-    ~bound_attribute(){
-        if( data )
-            delete data;
-    }
+	~bound_attribute(){
+		if( data )
+			delete data;
+	}
 };
 
 typedef std::pair<data_types::enum_t, std::size_t> channel_type;
@@ -70,73 +70,73 @@ static void exportParticlesDetail( const GU_Detail* gdp,
                                   const std::map<std::string,
                                   channel_type>& desiredChannels )
 {
-    prt_ofstream ostream;
+	prt_ofstream ostream;
 
-    static std::map<std::string, std::string> s_reservedChannels;
-    if( s_reservedChannels.empty() ) {
-        s_reservedChannels[ gdp->getStdAttributeName( GEO_ATTRIBUTE_NORMAL ) ] = "Normal";
-        s_reservedChannels[ gdp->getStdAttributeName( GEO_ATTRIBUTE_TEXTURE ) ] = "TextureCoord";
-        s_reservedChannels[ gdp->getStdAttributeName( GEO_ATTRIBUTE_VELOCITY ) ] = "Velocity";
-        s_reservedChannels[ gdp->getStdAttributeName( GEO_ATTRIBUTE_DIFFUSE ) ] = "Color";
-        //s_reservedChannels[ gdp->getStdAttributeName( GEO_ATTRIBUTE_ALPHA ) ] = "Density";
-        //s_reservedChannels[ gdp->getStdAttributeName( GEO_ATTRIBUTE_MASS ) ] = "Density";
-        s_reservedChannels[ gdp->getStdAttributeName( GEO_ATTRIBUTE_LIFE ) ] = "";
-        s_reservedChannels[ gdp->getStdAttributeName( GEO_ATTRIBUTE_ID ) ] = "ID";
-        s_reservedChannels[ gdp->getStdAttributeName( GEO_ATTRIBUTE_PSCALE ) ] = "Scale";
-        s_reservedChannels[ "accel" ] = "Acceleration";
-    }
+	static std::map<std::string, std::string> s_reservedChannels;
+	if( s_reservedChannels.empty() ) {
+		s_reservedChannels[ gdp->getStdAttributeName( GEO_ATTRIBUTE_NORMAL ) ] = "Normal";
+		s_reservedChannels[ gdp->getStdAttributeName( GEO_ATTRIBUTE_TEXTURE ) ] = "TextureCoord";
+		s_reservedChannels[ gdp->getStdAttributeName( GEO_ATTRIBUTE_VELOCITY ) ] = "Velocity";
+		s_reservedChannels[ gdp->getStdAttributeName( GEO_ATTRIBUTE_DIFFUSE ) ] = "Color";
+		//s_reservedChannels[ gdp->getStdAttributeName( GEO_ATTRIBUTE_ALPHA ) ] = "Density";
+		//s_reservedChannels[ gdp->getStdAttributeName( GEO_ATTRIBUTE_MASS ) ] = "Density";
+		s_reservedChannels[ gdp->getStdAttributeName( GEO_ATTRIBUTE_LIFE ) ] = "";
+		s_reservedChannels[ gdp->getStdAttributeName( GEO_ATTRIBUTE_ID ) ] = "ID";
+		s_reservedChannels[ gdp->getStdAttributeName( GEO_ATTRIBUTE_PSCALE ) ] = "Scale";
+		s_reservedChannels[ "accel" ] = "Acceleration";
+	}
 
-    float posVal[3];
-    float lifeVal[2];
+	float posVal[3];
+	float lifeVal[2];
 	
 	ostream.bind( "Position", posVal, 3 );
 
-    //We handle the life channel in a special manner
-    GA_ROAttributeRef lifeAttrib = gdp->findPointAttribute( gdp->getStdAttributeName( GEO_ATTRIBUTE_LIFE ) );
-    if( lifeAttrib.isValid() ){
-        std::map<std::string,channel_type>::const_iterator it;
+	//We handle the life channel in a special manner
+	GA_ROAttributeRef lifeAttrib = gdp->findPointAttribute( gdp->getStdAttributeName( GEO_ATTRIBUTE_LIFE ) );
+	if( lifeAttrib.isValid() ){
+		std::map<std::string,channel_type>::const_iterator it;
 		
-        it = desiredChannels.find( "Age" );
-        if( it != desiredChannels.end() && it->second.second == 1 )
-            ostream.bind( "Age", &lifeVal[0], 1, it->second.first );
-        else if( desiredChannels.empty() )
-            ostream.bind( "Age", &lifeVal[0], 1, prtio::data_types::type_float16 );
+		it = desiredChannels.find( "Age" );
+		if( it != desiredChannels.end() && it->second.second == 1 )
+			ostream.bind( "Age", &lifeVal[0], 1, it->second.first );
+		else if( desiredChannels.empty() )
+			ostream.bind( "Age", &lifeVal[0], 1, prtio::data_types::type_float16 );
 
-        it = desiredChannels.find( "LifeSpan" );
-        if( it != desiredChannels.end() && it->second.second == 1 )
-            ostream.bind( "LifeSpan", &lifeVal[1], 1, it->second.first );
-        else if( desiredChannels.empty() )
-            ostream.bind( "LifeSpan", &lifeVal[1], 1, prtio::data_types::type_float16 );
-    }
+		it = desiredChannels.find( "LifeSpan" );
+		if( it != desiredChannels.end() && it->second.second == 1 )
+			ostream.bind( "LifeSpan", &lifeVal[1], 1, it->second.first );
+		else if( desiredChannels.empty() )
+			ostream.bind( "LifeSpan", &lifeVal[1], 1, prtio::data_types::type_float16 );
+	}
 	
-    //Using a deque to prevent the memory from moving around after adding the bound_attribute to the container.
-    std::deque< bound_attribute<int> > m_intAttrs;
-    std::deque< bound_attribute<float> > m_floatAttrs;
-    std::deque< bound_attribute<float> > m_vectorAttrs;
+	//Using a deque to prevent the memory from moving around after adding the bound_attribute to the container.
+	std::deque< bound_attribute<int> > m_intAttrs;
+	std::deque< bound_attribute<float> > m_floatAttrs;
+	std::deque< bound_attribute<float> > m_vectorAttrs;
 	
-    for ( GA_AttributeDict::iterator it = gdp->getAttributes().getDict(GA_ATTRIB_POINT).begin(GA_SCOPE_PUBLIC); !it.atEnd(); ++it) {
+	for ( GA_AttributeDict::iterator it = gdp->getAttributes().getDict(GA_ATTRIB_POINT).begin(GA_SCOPE_PUBLIC); !it.atEnd(); ++it) {
 		
-        GA_Attribute *node = it.attrib();
+		GA_Attribute *node = it.attrib();
 
-        std::string channelName = node->getName();
+		std::string channelName = node->getName();
 
-        //Translate special names
-        std::map<std::string,std::string>::const_iterator itResChannel = s_reservedChannels.find( channelName );
-        if( itResChannel != s_reservedChannels.end() ){
-            //If its empty, that means we reserve some sort of special handling.
-            if( itResChannel->second.empty() )
-                continue;
-            channelName = itResChannel->second;
-        }
+		//Translate special names
+		std::map<std::string,std::string>::const_iterator itResChannel = s_reservedChannels.find( channelName );
+		if( itResChannel != s_reservedChannels.end() ){
+			//If its empty, that means we reserve some sort of special handling.
+			if( itResChannel->second.empty() )
+				continue;
+			channelName = itResChannel->second;
+		}
 		
-        //Skip channels that aren't on the list.
-        std::map<std::string,channel_type>::const_iterator itChannel = desiredChannels.find( channelName );
-        bool channelIsDesired = ( itChannel != desiredChannels.end() );
+		//Skip channels that aren't on the list.
+		std::map<std::string,channel_type>::const_iterator itChannel = desiredChannels.find( channelName );
+		bool channelIsDesired = ( itChannel != desiredChannels.end() );
 		
-        if( !desiredChannels.empty() && !channelIsDesired )
-            continue;
+		if( !desiredChannels.empty() && !channelIsDesired )
+			continue;
 			
-        prtio::data_types::enum_t type;
+		prtio::data_types::enum_t type;
 		
 		//Only add valid channel names
 		if( detail::is_valid_channel_name( channelName.c_str() ) ) {
@@ -196,12 +196,12 @@ static void exportParticlesDetail( const GU_Detail* gdp,
 		}
 	}
 
-    try{
-        ostream.open( filePath );
-    } catch( const std::ios::failure& e ) {
-        std::cerr << e.what() << std::endl;
-        throw HOM_OperationFailed( "Failed to open the file" );
-    }
+	try{
+		ostream.open( filePath );
+	} catch( const std::ios::failure& e ) {
+		std::cerr << e.what() << std::endl;
+		throw HOM_OperationFailed( "Failed to open the file" );
+	}
 		
 	GA_IndexMap map = gdp->getPointMap();
 	UT_Vector3 p;
@@ -219,235 +219,234 @@ static void exportParticlesDetail( const GU_Detail* gdp,
 		//TODO: Remove the GEO_Point object that is now deprecated. 
 		pt = ( GEO_Point* )gdp->getGBPoint( offset );
 		
-        //TODO: Convert this into appropriate time values. Is it seconds or frames or what?!
-        if( lifeAttrib.isValid() ) 
-            pt->get( lifeAttrib, lifeVal, 2 );
+		//TODO: Convert this into appropriate time values. Is it seconds or frames or what?!
+		if( lifeAttrib.isValid() ) 
+			pt->get( lifeAttrib, lifeVal, 2 );
 
-        for( std::deque< bound_attribute<float> >::iterator it = m_floatAttrs.begin(), itEnd = m_floatAttrs.end(); it != itEnd; ++it )
+		for( std::deque< bound_attribute<float> >::iterator it = m_floatAttrs.begin(), itEnd = m_floatAttrs.end(); it != itEnd; ++it )
 			pt->get( it->attr, it->data, it->count );
 
-        for( std::deque< bound_attribute<float> >::iterator it = m_vectorAttrs.begin(), itEnd = m_vectorAttrs.end(); it != itEnd; ++it ) {
-            pt->get( it->attr, it->data, it->count );
+		for( std::deque< bound_attribute<float> >::iterator it = m_vectorAttrs.begin(), itEnd = m_vectorAttrs.end(); it != itEnd; ++it ) {
+			pt->get( it->attr, it->data, it->count );
 				
-            //TODO: Optionally transform into some consistent world space for PRT files.
-        }
+			//TODO: Optionally transform into some consistent world space for PRT files.
+		}
 
-        for( std::deque< bound_attribute<int> >::iterator it = m_intAttrs.begin(), itEnd = m_intAttrs.end(); it != itEnd; ++it )
-            pt->get( it->attr, it->data, it->count );
+		for( std::deque< bound_attribute<int> >::iterator it = m_intAttrs.begin(), itEnd = m_intAttrs.end(); it != itEnd; ++it )
+			pt->get( it->attr, it->data, it->count );
 
-        ostream.write_next_particle();
+		ostream.write_next_particle();
 	}
 	
-    ostream.close();
+	ostream.close();
 }
 
 static void exportParticles( const char *node_path, const char *filePath, const std::map<std::string, channel_type>& channels )
 {
-    OP_Node *op_node = OPgetDirector()->findNode( node_path );
-    if ( !op_node )
-        throw HOM_OperationFailed( "Internal error (could not find node)" );
+	OP_Node *op_node = OPgetDirector()->findNode( node_path );
+	if ( !op_node )
+		throw HOM_OperationFailed( "Internal error (could not find node)" );
 
-    float t = HOM().time();
+	float t = HOM().time();
 	
-    SOP_Node* sopNode = CAST_SOPNODE( op_node );
-    if( !sopNode ) 
+	SOP_Node* sopNode = CAST_SOPNODE( op_node );
+	if( !sopNode ) 
 		throw HOM_OperationFailed( "Internal error (not a valid node type)" );
 	
-    // Get our parent.
-    OP_Node *parent_node = sopNode->getParent();
+	// Get our parent.
+	OP_Node *parent_node = sopNode->getParent();
     
-    // Store the cooking status of our parent node.
-    bool was_cooking = false;
-    if( parent_node ){
-        was_cooking = parent_node->isCookingRender();
-        parent_node->setCookingRender( true );
-    }
+	// Store the cooking status of our parent node.
+	bool was_cooking = false;
+	if( parent_node ){
+		was_cooking = parent_node->isCookingRender();
+		parent_node->setCookingRender( true );
+	}
 
-    // Create a context with the time we want the geometry at.
-    OP_Context  context( t );
-    // Get a handle to the geometry.
-    GU_DetailHandle gd_handle = sopNode->getCookedGeoHandle( context );
+	// Create a context with the time we want the geometry at.
+	OP_Context  context( t );
+	// Get a handle to the geometry.
+	GU_DetailHandle gd_handle = sopNode->getCookedGeoHandle( context );
 
-    // Restore the cooking flag, if we changed it.
-    if( parent_node )
-        parent_node->setCookingRender( was_cooking );
+	// Restore the cooking flag, if we changed it.
+	if( parent_node )
+		parent_node->setCookingRender( was_cooking );
 
-    // Check if we have a valid detail handle.
-    if( gd_handle.isNull() ) 
+	// Check if we have a valid detail handle.
+	if( gd_handle.isNull() ) 
 		throw HOM_OperationFailed( "Internal error (not a valid detail handle)" );
 
-    // Lock it for reading.
-    GU_DetailHandleAutoReadLock gd_lock( gd_handle );
+	// Lock it for reading.
+	GU_DetailHandleAutoReadLock gd_lock( gd_handle );
 
-    // Finally, get at the actual GU_Detail.
-    const GU_Detail* gdp = gd_lock.getGdp();
+	// Finally, get at the actual GU_Detail.
+	const GU_Detail* gdp = gd_lock.getGdp();
 	
-    exportParticlesDetail( gdp, filePath, channels );
+	exportParticlesDetail( gdp, filePath, channels );
 }
 
 static PY_PyObject* createHouException( const char *exception_class_name,
                                         const char *instance_message,
                                         PY_PyObject *&exception_class )
 {
-    // Create an instance of the given exception class from the hou
-    // module, passing the instance message into the exeption class's
-    // __init__ method.  This function returns a new exception instance, or
-    // NULL if an error occurred.  The class is returned in exception_class
-    // and is a borrowed reference.
-    exception_class = NULL;
+	// Create an instance of the given exception class from the hou
+	// module, passing the instance message into the exeption class's
+	// __init__ method.  This function returns a new exception instance, or
+	// NULL if an error occurred.  The class is returned in exception_class
+	// and is a borrowed reference.
+	exception_class = NULL;
 
-    // Note that a PY_AutoObject class is just a wrapper around a
-    // PY_PyObject pointer that will call PY_Py_XDECREF when the it's destroyed.
-    // We use it for Python API functions that return new object instances.
-    // Because this HDK extension is installed after the hou module is
-    // imported, we can be sure that we can be sure hou_module won't be null.
-    PY_AutoObject hou_module( PY_PyImport_ImportModule( "hou" ) );
+	// Note that a PY_AutoObject class is just a wrapper around a
+	// PY_PyObject pointer that will call PY_Py_XDECREF when the it's destroyed.
+	// We use it for Python API functions that return new object instances.
+	// Because this HDK extension is installed after the hou module is
+	// imported, we can be sure that we can be sure hou_module won't be null.
+	PY_AutoObject hou_module( PY_PyImport_ImportModule( "hou" ) );
 
-    // Look up the exception by name in the module's dictionary.  Note that
-    // PY_PyModule_GetDict returns a borrowed reference and that it never
-    // returns NULL.  PY_PyDict_GetItemString also returns a borrowed
-    // reference.
-    PY_PyObject *hou_module_dict = PY_PyModule_GetDict( hou_module );
-    exception_class = PY_PyDict_GetItemString( hou_module_dict, exception_class_name );
+	// Look up the exception by name in the module's dictionary.  Note that
+	// PY_PyModule_GetDict returns a borrowed reference and that it never
+	// returns NULL.  PY_PyDict_GetItemString also returns a borrowed
+	// reference.
+	PY_PyObject *hou_module_dict = PY_PyModule_GetDict( hou_module );
+	exception_class = PY_PyDict_GetItemString( hou_module_dict, exception_class_name );
 
-    // PY_PyDict_GetItemString doesn't set a Python exception, so we are careful
-    // to set it ourselves if the class name isn't valid.
-    if ( !exception_class )
-    {
-        PY_PyErr_SetString( PY_PyExc_RuntimeError(), "Could not find exception class in hou module" );
-        return NULL;
-    }
+	// PY_PyDict_GetItemString doesn't set a Python exception, so we are careful
+	// to set it ourselves if the class name isn't valid.
+	if ( !exception_class )
+	{
+		PY_PyErr_SetString( PY_PyExc_RuntimeError(), "Could not find exception class in hou module" );
+		return NULL;
+	}
 
-    // Create an instance of the exception.  First create a tuple containing
-    // the arguments to __init__.
-    PY_AutoObject args( PY_Py_BuildValue( "(s)", instance_message ) );
-    if ( !args )
-        return NULL;
+	// Create an instance of the exception.  First create a tuple containing
+	// the arguments to __init__.
+	PY_AutoObject args( PY_Py_BuildValue( "(s)", instance_message ) );
+	if ( !args )
+		return NULL;
 
-    return PY_PyObject_Call( exception_class, args, /*kwargs=*/NULL );
+	return PY_PyObject_Call( exception_class, args, /*kwargs=*/NULL );
 }
 
 static PY_PyObject* exportParticles_Wrapper( PY_PyObject *self, PY_PyObject *args )
 {
-    // This is a wrapper that is called from the Python runtime engine.  It
-    // translates the Python arguments to C/C++ ones, calls a function to do
-    // the actual work, and converts exceptions raised by that function intotest
-    // Python exceptions.
-    //
-    // Note that you could also use swig to automatically generate wrapper
-    // functions like this.
-    //
-    // Since this function is called from the Python runtime engine, we
-    // don't need to manually acquire the Python global interpreter lock (GIL).
+	// This is a wrapper that is called from the Python runtime engine.  It
+	// translates the Python arguments to C/C++ ones, calls a function to do
+	// the actual work, and converts exceptions raised by that function intotest
+	// Python exceptions.
+	//
+	// Note that you could also use swig to automatically generate wrapper
+	// functions like this.
+	//
+	// Since this function is called from the Python runtime engine, we
+	// don't need to manually acquire the Python global interpreter lock (GIL).
 
-    // First extract the arguments: a string and a string.
-    //const char *node_path;
-    PY_PyObject* node;
-    PY_PyObject* channelList = NULL;
-    const char *file_path;
+	// First extract the arguments: a string and a string.
+	//const char *node_path;
+	PY_PyObject* node;
+	PY_PyObject* channelList = NULL;
+	const char *file_path;
 
-    if( !PY_PyArg_ParseTuple( args, "Os|O", &node, &file_path, &channelList ) )
-        return NULL;
+	if( !PY_PyArg_ParseTuple( args, "Os|O", &node, &file_path, &channelList ) )
+		return NULL;
 
-    PY_AutoObject nodePath = PY_PyObject_CallMethod( node, "path", NULL );
-    if( !nodePath )
-        return NULL;
+	PY_AutoObject nodePath = PY_PyObject_CallMethod( node, "path", NULL );
+	if( !nodePath )
+		return NULL;
 	
-    std::map< std::string, channel_type > channels;
+	std::map< std::string, channel_type > channels;
 	
-    if( channelList != NULL ){
-        try{
-            PY_Py_ssize_t listLen = PY_PySequence_Size( channelList );
+	if( channelList != NULL ){
+		try{
+			PY_Py_ssize_t listLen = PY_PySequence_Size( channelList );
 			
-            for( PY_Py_ssize_t i = 0; i < listLen; ++i ){
-                PY_PyObject* p = PY_PySequence_GetItem( channelList, i );
+			for( PY_Py_ssize_t i = 0; i < listLen; ++i ){
+				PY_PyObject* p = PY_PySequence_GetItem( channelList, i );
 				
-                char* curString = p ? PY_PyString_AsString( p ) : NULL;
-                if( !curString )
-                    return NULL;
+				char* curString = p ? PY_PyString_AsString( p ) : NULL;
+				if( !curString )
+					return NULL;
 				
-                const char *nameStart = curString, *nameEnd = curString;
-                while( *nameEnd != '\0' && std::isalnum( *nameEnd ) )
-                    ++nameEnd;
+				const char *nameStart = curString, *nameEnd = curString;
+				while( *nameEnd != '\0' && std::isalnum( *nameEnd ) )
+					++nameEnd;
 				
-                std::string name( nameStart, nameEnd );
+				std::string name( nameStart, nameEnd );
 				
-                channel_type type = prtio::data_types::parse_data_type( nameEnd );
+				channel_type type = prtio::data_types::parse_data_type( nameEnd );
 				
-                channels[name] = type;
-            }
-        }catch( const std::exception& e ){
-            PY_PyErr_SetString( PY_PyExc_TypeError(), e.what() );
-            return NULL;
-        }
-    }
+				channels[name] = type;
+			}
+		}catch( const std::exception& e ){
+			PY_PyErr_SetString( PY_PyExc_TypeError(), e.what() );
+			return NULL;
+		}
+	}
 
-    // Now call ObjNode_setSelectable to do the actual work, taking care
-    // of the locking and exception handling here.
-    try
-    {
-        // If this code is called from a thread other than the main thread,
-        // creating a HOM_AutoLock instance will lock, waiting until Houdini
-        // is sitting idle in its event loop.  This way, we can be sure that
-        // any code that accesses Houdini's internal state is threadsafe.
-        HOM_AutoLock hom_lock;
+	// Now call ObjNode_setSelectable to do the actual work, taking care
+	// of the locking and exception handling here.
+	try
+	{
+		// If this code is called from a thread other than the main thread,
+		// creating a HOM_AutoLock instance will lock, waiting until Houdini
+		// is sitting idle in its event loop.  This way, we can be sure that
+		// any code that accesses Houdini's internal state is threadsafe.
+		HOM_AutoLock hom_lock;
 
-        // Call the wrapped function to do the actual work.
-        exportParticles( PY_PyString_AsString( nodePath ), file_path, channels );
+		// Call the wrapped function to do the actual work.
+		exportParticles( PY_PyString_AsString( nodePath ), file_path, channels );
 
-        // Return PY_Py_None to indicate that no error occurred.  If your
-        // wrapped function returns a value, you'll need to convert it into
-        // a Python object here.
-        return PY_Py_None();
-    }
-    catch ( HOM_Error &error )
-    {
-        cerr << error.instanceMessage() << std::endl;
+		// Return PY_Py_None to indicate that no error occurred.  If your
+		// wrapped function returns a value, you'll need to convert it into
+		// a Python object here.
+		return PY_Py_None();
+	}
+	catch ( HOM_Error &error )
+	{
+		cerr << error.instanceMessage() << std::endl;
 
-        // The exceptions used by the hou module are subclasses of HOM_Error
-        // (and can be found in HOM_Errors.h).  We use RTTI to get the class
-        // name, remove the "HOM_" prefix, and look up the corresponding
-        // exception class in the hou Python module.
-        std::string exception_class_name = UTunmangleClassNameFromTypeIdName( typeid(error).name() );
-        if ( exception_class_name.find( "HOM_" ) == 0 )
-            exception_class_name = exception_class_name.substr( 4 );
+		// The exceptions used by the hou module are subclasses of HOM_Error
+		// (and can be found in HOM_Errors.h).  We use RTTI to get the class
+		// name, remove the "HOM_" prefix, and look up the corresponding
+		// exception class in the hou Python module.
+		std::string exception_class_name = UTunmangleClassNameFromTypeIdName( typeid(error).name() );
+		if ( exception_class_name.find( "HOM_" ) == 0 )
+			exception_class_name = exception_class_name.substr( 4 );
 
-        // Note that a PY_AutoObject class is just a wrapper around a
-        // PY_PyObject pointer that will call PY_Py_XDECREF when the it's
-        // destroyed.
-        PY_PyObject* exception_class;
-        PY_AutoObject exception_instance( createHouException( exception_class_name.c_str(),
-                                                            error.instanceMessage().c_str(),exception_class ) );
-        if ( !exception_instance )
-            return NULL;
+		// Note that a PY_AutoObject class is just a wrapper around a
+		// PY_PyObject pointer that will call PY_Py_XDECREF when the it's
+		// destroyed.
+		PY_PyObject* exception_class;
+		PY_AutoObject exception_instance( createHouException( exception_class_name.c_str(), error.instanceMessage().c_str(),exception_class ) );
+		if ( !exception_instance )
+			return NULL;
 
-        // Set the exception and return NULL so Python knows an exception was
-        // raised.
-        PY_PyErr_SetObject( exception_class, exception_instance );
-        return NULL;
-    }
+		// Set the exception and return NULL so Python knows an exception was
+		// raised.
+		PY_PyErr_SetObject( exception_class, exception_instance );
+		return NULL;
+	}
 }
 
 void HOMextendLibrary()
 {
-    // This function installs the C++ HOM extension.  When the hou module is
-    // first imported, Houdini will call functions named HOMextendLibrary in
-    // HDK dso's.  This function is declared in an extern "C" in HOM_Module.h.
+	// This function installs the C++ HOM extension.  When the hou module is
+	// first imported, Houdini will call functions named HOMextendLibrary in
+	// HDK dso's.  This function is declared in an extern "C" in HOM_Module.h.
 
-    {
-        // A PY_InterpreterAutoLock will grab the Python global interpreter
-        // lock (GIL).  It's important that we have the GIL before making
-        // any calls into the Python API.
-        PY_InterpreterAutoLock interpreter_auto_lock;
+	{
+		// A PY_InterpreterAutoLock will grab the Python global interpreter
+		// lock (GIL).  It's important that we have the GIL before making
+		// any calls into the Python API.
+		PY_InterpreterAutoLock interpreter_auto_lock;
 
-        // We'll create a new module named "_hom_extensions", and add functions
-        // to it.  We don't give a docstring here because it's given in the
-        // Python implementation below.
-        static PY_PyMethodDef krakatoaModule[] = {
-            {"exportParticles", exportParticles_Wrapper, PY_METH_VARARGS(), ""},
-            { NULL, NULL, 0, NULL }
-        };
+		// We'll create a new module named "_hom_extensions", and add functions
+		// to it.  We don't give a docstring here because it's given in the
+		// Python implementation below.
+		static PY_PyMethodDef krakatoaModule[] = {
+			{"exportParticles", exportParticles_Wrapper, PY_METH_VARARGS(), ""},
+			{ NULL, NULL, 0, NULL }
+		};
 
-        PY_Py_InitModule( "Krakatoa", krakatoaModule );
-    }
+		PY_Py_InitModule( "Krakatoa", krakatoaModule );
+	}
 }
