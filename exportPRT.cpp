@@ -1,5 +1,5 @@
 /**
- * Copyright 2013 Thinkbox Software Inc.
+ * Copyright 2017 Thinkbox Software Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,7 +14,7 @@
  * limitations under the License.
  *
  * This file contains a Houdini plugin for exporting Houdini particles in PRT format.
- * The plugin supports Houdini 12 and Houdini 13.
+ * The plugin supports Houdini 16.
  */
  
 #define OPENEXR_DLL
@@ -72,7 +72,7 @@ static void exportParticlesDetail( const GU_Detail* gdp,
 {
 	prt_ofstream ostream;
 
-	static std::map<std::string, std::string> s_reservedChannels;
+	static std::map<UT_StringHolder, std::string> s_reservedChannels;
 	if( s_reservedChannels.empty() ) {
 		s_reservedChannels[ gdp->getStdAttributeName( GEO_ATTRIBUTE_NORMAL ) ] = "Normal";
 		s_reservedChannels[ gdp->getStdAttributeName( GEO_ATTRIBUTE_TEXTURE ) ] = "TextureCoord";
@@ -118,10 +118,10 @@ static void exportParticlesDetail( const GU_Detail* gdp,
 		
 		GA_Attribute *node = it.attrib();
 
-		std::string channelName = node->getName();
+		auto channelName = node->getName().toStdString();
 
-		//Translate special names
-		std::map<std::string,std::string>::const_iterator itResChannel = s_reservedChannels.find( channelName );
+		// Translate special names
+		auto itResChannel = s_reservedChannels.find( channelName );
 		if( itResChannel != s_reservedChannels.end() ){
 			//If its empty, that means we reserve some sort of special handling.
 			if( itResChannel->second.empty() )
@@ -136,22 +136,20 @@ static void exportParticlesDetail( const GU_Detail* gdp,
 		if( !desiredChannels.empty() && !channelIsDesired )
 			continue;
 			
-		prtio::data_types::enum_t type;
-		
 		//Only add valid channel names
 		if( detail::is_valid_channel_name( channelName.c_str() ) ) {
 			//I add the new item to the deque, THEN initialize it since a deque will not move the object around and this allows
 			//me to allocate the float array and not have to worry about the object getting deleted too early.
-			switch( node->getStorageClass() ){
-			case GA_STORECLASS_FLOAT:
-				if( node->getTupleSize()==3 ){
+			switch( node->getStorageClass() ) {
+			case GA_STORECLASS_FLOAT: {
+				if( node->getTupleSize() == 3 ) {
 					m_vectorAttrs.push_back( bound_attribute<float>() );
-					m_vectorAttrs.back().attr =	gdp->findPointAttribute(node->getName());
+					m_vectorAttrs.back().attr = gdp->findPointAttribute( node->getName() );
 					m_vectorAttrs.back().count = node->getTupleSize();
 					m_vectorAttrs.back().data = new float[m_vectorAttrs.back().count];
 
-					type = prtio::data_types::type_float16;
-					if( channelIsDesired ){
+					prtio::data_types::enum_t type = prtio::data_types::type_float16;
+					if( channelIsDesired ) {
 						type = itChannel->second.first;
 						if( itChannel->second.second != m_vectorAttrs.back().count )
 							continue;
@@ -161,12 +159,12 @@ static void exportParticlesDetail( const GU_Detail* gdp,
 
 				} else {
 					m_floatAttrs.push_back( bound_attribute<float>() );
-					m_floatAttrs.back().attr =	gdp->findPointAttribute( node->getName() );
+					m_floatAttrs.back().attr = gdp->findPointAttribute( node->getName() );
 					m_floatAttrs.back().count = node->getTupleSize();
 					m_floatAttrs.back().data = new float[m_floatAttrs.back().count];
 
-					type = prtio::data_types::type_float16;
-					if( channelIsDesired ){
+					prtio::data_types::enum_t type = prtio::data_types::type_float16;
+					if( channelIsDesired ) {
 						type = itChannel->second.first;
 						if( itChannel->second.second != m_floatAttrs.back().count )
 							continue;
@@ -175,21 +173,23 @@ static void exportParticlesDetail( const GU_Detail* gdp,
 					ostream.bind( channelName, m_floatAttrs.back().data, m_floatAttrs.back().count, type );
 				}
 				break;
-			case GA_STORECLASS_INT:
+			}
+			case GA_STORECLASS_INT: {
 				m_intAttrs.push_back( bound_attribute<int>() );
 				m_intAttrs.back().attr = gdp->findPointAttribute( node->getName() );
 				m_intAttrs.back().count = node->getTupleSize();
 				m_intAttrs.back().data = new int[m_intAttrs.back().count];
 
-				type = prtio::data_types::type_int32;
-				if( channelIsDesired ){
+				prtio::data_types::enum_t type = prtio::data_types::type_int32;
+				if( channelIsDesired ) {
 					type = itChannel->second.first;
 					if( itChannel->second.second != m_intAttrs.back().count )
 						continue;
 				}
-			
+
 				ostream.bind( channelName, m_intAttrs.back().data, m_intAttrs.back().count, type );
 				break;
+			}
 			default:
 				break;
 			}
@@ -202,38 +202,51 @@ static void exportParticlesDetail( const GU_Detail* gdp,
 		std::cerr << e.what() << std::endl;
 		throw HOM_OperationFailed( "Failed to open the file" );
 	}
-		
-	GA_IndexMap map = gdp->getPointMap();
-	UT_Vector3 p;
-	GEO_Point* pt;
-	GA_Index indexSize = map.indexSize();
-	GA_Offset offset;
 
-	for( int i = 0 ; i < indexSize; i++ ) {
-		offset = map.offsetFromIndex( i );
-		p = gdp->getPos3( offset );
+	for( auto it = GA_Iterator( gdp->getPointRange() ); !it.atEnd(); ++it ) {
+		GA_Offset offset = it.getOffset();
+		const UT_Vector3 p = gdp->getPos3( offset );
 		posVal[0] = p.x();
 		posVal[1] = p.y();
-		posVal[2] = -1 * p.z();
-		
-		//TODO: Remove the GEO_Point object that is now deprecated. 
-		pt = ( GEO_Point* )gdp->getGBPoint( offset );
-		
-		//TODO: Convert this into appropriate time values. Is it seconds or frames or what?!
-		if( lifeAttrib.isValid() ) 
-			pt->get( lifeAttrib, lifeVal, 2 );
+		posVal[2] = -p.z();
 
-		for( std::deque< bound_attribute<float> >::iterator it = m_floatAttrs.begin(), itEnd = m_floatAttrs.end(); it != itEnd; ++it )
-			pt->get( it->attr, it->data, it->count );
-
-		for( std::deque< bound_attribute<float> >::iterator it = m_vectorAttrs.begin(), itEnd = m_vectorAttrs.end(); it != itEnd; ++it ) {
-			pt->get( it->attr, it->data, it->count );
-				
-			//TODO: Optionally transform into some consistent world space for PRT files.
+		// TODO: Convert this into appropriate time values. Is it seconds or frames or what?!
+		if( lifeAttrib.isValid() ) {
+			GA_ROHandleF handle( lifeAttrib );
+			if( handle.isInvalid() ) {
+				auto msg = "Handle for " + lifeAttrib->getExportName() + " was invalid.";
+				throw HOM_OperationFailed( msg.c_str() );
+			}
+			handle.getV( offset, lifeVal, 2 );
 		}
-
-		for( std::deque< bound_attribute<int> >::iterator it = m_intAttrs.begin(), itEnd = m_intAttrs.end(); it != itEnd; ++it )
-			pt->get( it->attr, it->data, it->count );
+		for( auto it = m_floatAttrs.begin(), itEnd = m_floatAttrs.end(); it != itEnd; ++it ) {
+			GA_ROHandleF handle( it->attr );
+			if( handle.isInvalid() ) {
+				auto msg = "Handle for " + it->attr->getExportName() + " was invalid.";
+				throw HOM_OperationFailed( msg.c_str() );
+			}
+			handle.getV( offset, it->data, it->count );
+		}
+		for( auto it = m_vectorAttrs.begin(), itEnd = m_vectorAttrs.end(); it != itEnd; ++it ) {
+			// TODO: Optionally transform into some consistent world space for PRT files.
+			GA_ROHandleV3 handle( it->attr );
+			if( handle.isInvalid() ) {
+				auto msg = "Handle for " + it->attr->getExportName() + " was invalid.";
+				throw HOM_OperationFailed( msg.c_str() );
+			}
+			auto v = handle( offset );
+			for( std::size_t i = 0; i < 3; ++i ) {
+				it->data[i] = v[i];
+			}
+		}
+		for( auto it = m_intAttrs.begin(), itEnd = m_intAttrs.end(); it != itEnd; ++it ) {
+			GA_ROHandleI handle( it->attr );
+			if( handle.isInvalid() ) {
+				auto msg = "Handle for " + it->attr->getExportName() + " was invalid.";
+				throw HOM_OperationFailed( msg.c_str() );
+			}
+			handle.getV( offset, it->data, it->count );
+		}
 
 		ostream.write_next_particle();
 	}
@@ -402,15 +415,11 @@ static PY_PyObject* exportParticles_Wrapper( PY_PyObject *self, PY_PyObject *arg
 	}
 	catch ( HOM_Error &error )
 	{
-		cerr << error.instanceMessage() << std::endl;
+		std::cerr << error.instanceMessage() << std::endl;
 
-		// The exceptions used by the hou module are subclasses of HOM_Error
-		// (and can be found in HOM_Errors.h).  We use RTTI to get the class
-		// name, remove the "HOM_" prefix, and look up the corresponding
-		// exception class in the hou Python module.
-		std::string exception_class_name = UTunmangleClassNameFromTypeIdName( typeid(error).name() );
-		if ( exception_class_name.find( "HOM_" ) == 0 )
-			exception_class_name = exception_class_name.substr( 4 );
+		// The exceptions used by the hou module are subclasses of HOM_Error (and can be found in HOM_Errors.h).
+		// We use RTTI to get the class name and look up the corresponding exception class in the hou Python module.
+		const std::string exception_class_name = error.exceptionTypeName();
 
 		// Note that a PY_AutoObject class is just a wrapper around a
 		// PY_PyObject pointer that will call PY_Py_XDECREF when the it's
