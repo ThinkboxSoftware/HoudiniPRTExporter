@@ -9,7 +9,8 @@ This plugin supports Houdini 16.
 
 ## Download Binary
 
-PRT Exporter downloads: https://thinkboxsoftware.box.com/s/l8sggb6upk3m4ko5irn8
+See our [releases
+page](https://github.com/ThinkboxSoftware/HoudiniPRTExporter/releases).
 
 
 ## Building from Source
